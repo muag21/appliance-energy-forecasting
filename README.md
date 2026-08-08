@@ -259,6 +259,17 @@ panel, error-by-lead-time curve, residual diagnostics, permutation importance.
 
 ---
 
+## Verification
+
+```bash
+python scripts/verify.py    # 24 automated pre-submission checks
+```
+
+Checks repository structure, that tests pass, that outputs exist and are
+internally consistent, that no draft placeholders remain, and that every metric
+in `model_comparison.csv` appears in the report. `CHECKLIST.md` covers the
+reproducibility and judgement checks that cannot be automated.
+
 ## Tests
 
 ```bash
