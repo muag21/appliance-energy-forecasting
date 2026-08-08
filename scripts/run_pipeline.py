@@ -42,7 +42,8 @@ def parse_args():
                         help="also run the single 336-step experiment")
     parser.add_argument("--tune", action="store_true",
                         help="grid search the gradient boosting model")
-    parser.add_argument("--device", default="cpu", help="device for Chronos")
+    parser.add_argument("--device", default="auto",
+                        help="device for Chronos: auto, cpu or cuda")
     return parser.parse_args()
 
 

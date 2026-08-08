@@ -20,12 +20,24 @@ from .. import config
 _PIPELINE_CACHE: dict[str, object] = {}
 
 
-def load_chronos(model_name: str = config.CHRONOS_MODEL, device: str = "cpu"):
+def resolve_device(device: str = "auto") -> str:
+    """Return 'cuda' when a GPU is available and ``device`` is 'auto'."""
+    if device != "auto":
+        return device
+    try:
+        import torch
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    except ImportError:
+        return "cpu"
+
+
+def load_chronos(model_name: str = config.CHRONOS_MODEL, device: str = "auto"):
     """Load and cache the Chronos pipeline.
 
     Import is deferred so that the rest of the pipeline runs without torch
     installed.
     """
+    device = resolve_device(device)
     key = f"{model_name}:{device}"
     if key in _PIPELINE_CACHE:
         return _PIPELINE_CACHE[key]
@@ -42,7 +54,7 @@ def load_chronos(model_name: str = config.CHRONOS_MODEL, device: str = "cpu"):
     pipeline = ChronosPipeline.from_pretrained(
         model_name,
         device_map=device,
-        torch_dtype=torch.float32,  # float32 for CPU inference
+        torch_dtype=torch.bfloat16 if device == "cuda" else torch.float32,
     )
 
     _PIPELINE_CACHE[key] = pipeline
@@ -53,7 +65,7 @@ def chronos_forecaster(
     model_name: str = config.CHRONOS_MODEL,
     context_length: int = config.CHRONOS_CONTEXT,
     num_samples: int = config.CHRONOS_SAMPLES,
-    device: str = "cpu",
+    device: str = "auto",
     quantiles: tuple[float, ...] = (0.1, 0.5, 0.9),
 ):
     """Return a forecaster with the standard ``(history, horizon)`` signature.
@@ -77,7 +89,7 @@ def chronos_forecaster(
             num_samples=num_samples,
         )
 
-        arr = samples[0].numpy()  # (num_samples, horizon)
+        arr = samples[0].float().cpu().numpy()  # (num_samples, horizon)
         qs = np.quantile(arr, quantiles, axis=0)
         store.append(pd.DataFrame(qs.T, columns=[f"q{q}" for q in quantiles]))
 

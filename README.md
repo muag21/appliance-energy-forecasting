@@ -70,6 +70,26 @@ calls at 20 samples each.
 
 ---
 
+## Running on Google Colab
+
+Open `notebooks/00_colab_quickstart.ipynb` in Colab. This is the recommended way
+to run the foundation model: Colab reaches the model host and offers a free GPU,
+where a local or restricted environment may not.
+
+```python
+!git clone https://github.com/YOUR_USERNAME/appliance-energy-forecasting.git /content/project
+%cd /content/project
+!pip install -q chronos-forecasting
+!python scripts/run_pipeline.py --device auto
+```
+
+Colab already ships numpy, pandas, scikit-learn, statsmodels and torch — only
+Chronos needs installing, and upgrading the others forces a runtime restart.
+`weasyprint` is unavailable there, so build the report PDF locally.
+
+Colab's filesystem is wiped when the runtime disconnects. Download `outputs/`
+or push back to GitHub before closing the tab.
+
 ## Repository layout
 
 ```
@@ -85,6 +105,7 @@ appliance-energy-forecasting/
 │   └── processed/                 # hourly analysis frame (git-ignored)
 │
 ├── notebooks/
+│   ├── 00_colab_quickstart.ipynb
 │   ├── 01_data_download_and_cleaning.ipynb
 │   ├── 02_exploratory_analysis.ipynb
 │   ├── 03_benchmark_models.ipynb
