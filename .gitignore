@@ -12,3 +12,4 @@ outputs/**/*.csv
 outputs/model_objects/
 .DS_Store
 reports/report.pdf
+CHECKLIST.pdf

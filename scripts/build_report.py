@@ -4,13 +4,20 @@ Requires: pandoc (system) and weasyprint (pip install weasyprint).
 Placeholders of the form ⟦FILL: ...⟧ are rendered as highlighted spans so
 that unfinished sections are visible on the page.
 
-    python scripts/build_report.py
+    python scripts/build_report.py                 # reports/report.md
+    python scripts/build_report.py CHECKLIST.md    # any markdown file
 """
 import re, pathlib, subprocess
 from weasyprint import HTML, CSS
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-src = (ROOT / "reports" / "report.md").read_text()
+
+# Optional argument: any markdown file. Defaults to the report.
+import sys
+_arg = sys.argv[1] if len(sys.argv) > 1 else "reports/report.md"
+SRC_PATH = (ROOT / _arg).resolve()
+OUT_PATH = SRC_PATH.with_suffix(".pdf")
+src = SRC_PATH.read_text()
 
 # --- Protect inline code spans and fenced blocks from substitution ----------
 vault = []
@@ -27,6 +34,12 @@ def fill(m):
     return f'<span class="fill">FILL: {body}</span>'
 
 protected = re.sub(r"⟦FILL:?\s*(.*?)⟧", fill, protected, flags=re.S)
+
+# Task-list checkboxes render as CSS-drawn squares, so they print and tick.
+protected = re.sub(r"^(\s*)- \[ \] ", r'\1- <span class="box"></span>',
+                   protected, flags=re.M)
+protected = re.sub(r"^(\s*)- \[[xX]\] ", r'\1- <span class="box done"></span>',
+                   protected, flags=re.M)
 
 for i, original in enumerate(vault):
     protected = protected.replace(f"@@V{i}@@", original)
@@ -82,13 +95,19 @@ blockquote { border-left: 3pt solid #c8901c; background: #fdf6e6;
              margin: 12pt 0; padding: 8pt 12pt; font-size: 9.3pt;
              break-inside: avoid; }
 blockquote p { margin-bottom: 5pt; }
+.box { display: inline-block; width: 8.5pt; height: 8.5pt;
+        border: 0.8pt solid #6a7280; border-radius: 1.5pt;
+        margin-right: 5pt; vertical-align: -0.5pt; }
+.box.done { background: #6a7280; }
+ul li { list-style: none; margin-left: -12pt; }
+ul li ul li, ol li { list-style: revert; margin-left: 0; }
 .fill { background: #ffe6a0; border: 0.5pt solid #d9a520;
         padding: 0.5pt 3pt; font-family: "DejaVu Sans", sans-serif;
         font-size: 8.5pt; color: #6b4a00; }
 sub, sup { font-size: 7.5pt; }
 """
 
-HTML(string=html, base_url=str(ROOT / "reports")).write_pdf(
-    str(ROOT / "reports" / "report.pdf"), stylesheets=[CSS(string=CSS_TEXT)]
+HTML(string=html, base_url=str(SRC_PATH.parent)).write_pdf(
+    str(OUT_PATH), stylesheets=[CSS(string=CSS_TEXT)]
 )
-print("built")
+print(f"built {OUT_PATH.relative_to(ROOT)}")
