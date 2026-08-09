@@ -30,6 +30,14 @@ to show how each model degrades over a long horizon.
 
 ---
 
+## Documentation
+
+| File | Purpose |
+|---|---|
+| `SETUP.md` | End-to-end setup: local, GitHub and Colab workflows |
+| `CHECKLIST.md` | Pre-submission verification |
+| `reports/report.md` | The report itself |
+
 ## Quick start
 
 ```bash
