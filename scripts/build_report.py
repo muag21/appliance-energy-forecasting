@@ -1,6 +1,8 @@
-"""Render reports/report.md to a print-ready A4 PDF.
+"""Render a markdown file to a print-ready A4 PDF.
 
-Requires: pandoc (system) and weasyprint (pip install weasyprint).
+Uses the pure-Python `markdown` package (pip install markdown).
+PDF output uses WeasyPrint when available; on Windows it usually is not,
+so the script writes styled HTML instead and you print it from a browser.
 Placeholders of the form ⟦FILL: ...⟧ are rendered as highlighted spans so
 that unfinished sections are visible on the page.
 
@@ -8,7 +10,6 @@ that unfinished sections are visible on the page.
     python scripts/build_report.py CHECKLIST.md    # any markdown file
 """
 import re, pathlib, subprocess
-from weasyprint import HTML, CSS
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -17,7 +18,7 @@ import sys
 _arg = sys.argv[1] if len(sys.argv) > 1 else "reports/report.md"
 SRC_PATH = (ROOT / _arg).resolve()
 OUT_PATH = SRC_PATH.with_suffix(".pdf")
-src = SRC_PATH.read_text()
+src = SRC_PATH.read_text(encoding="utf-8")
 
 # --- Protect inline code spans and fenced blocks from substitution ----------
 vault = []
@@ -44,18 +45,35 @@ protected = re.sub(r"^(\s*)- \[[xX]\] ", r'\1- <span class="box done"></span>',
 for i, original in enumerate(vault):
     protected = protected.replace(f"@@V{i}@@", original)
 
-pathlib.Path("/tmp/pre.md").write_text(protected)
 
 # --- Markdown -> HTML fragment ---------------------------------------------
-body = subprocess.run(
-    ["pandoc", "/tmp/pre.md", "-f", "markdown+pipe_tables+raw_html",
-     "-t", "html5"],
-    capture_output=True, text=True, check=True,
-).stdout
+def to_html(text):
+    """Convert with the pure-Python markdown package; fall back to pandoc."""
+    try:
+        import markdown
+        return markdown.markdown(
+            text,
+            extensions=["tables", "fenced_code", "attr_list", "md_in_html"],
+        )
+    except ImportError:
+        pass
+    try:
+        return subprocess.run(
+            ["pandoc", "-f", "markdown+pipe_tables+raw_html", "-t", "html5"],
+            input=text, capture_output=True, text=True, check=True,
+            encoding="utf-8",
+        ).stdout
+    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
+        raise SystemExit(
+            "Could not convert markdown to HTML.\n"
+            "Install the markdown package:  pip install markdown"
+        ) from exc
 
-html = f"<!DOCTYPE html><html><head><meta charset='utf-8'></head><body>{body}</body></html>"
+
+body = to_html(protected)
 
 CSS_TEXT = """
+@media print { body { padding: 0; max-width: none; } }
 @page {
   size: A4; margin: 17mm 17mm 15mm 17mm;
   @bottom-center {
@@ -63,7 +81,8 @@ CSS_TEXT = """
     font-family: "DejaVu Sans", sans-serif; font-size: 8pt; color: #6a7280;
   }
 }
-body { font-family: "DejaVu Serif", Georgia, serif; font-size: 9.6pt;
+body { font-family: "DejaVu Serif", Georgia, "Times New Roman", serif;
+       max-width: 900px; margin: 0 auto; padding: 20px; font-size: 9.6pt;
        line-height: 1.36; color: #16181d; text-align: justify; hyphens: auto; }
 h1 { font-family: "DejaVu Sans", sans-serif; font-size: 18pt; line-height: 1.22;
      margin: 0 0 10pt 0; text-align: left; font-weight: 700;
@@ -77,7 +96,7 @@ h3 { font-family: "DejaVu Sans", sans-serif; font-size: 10pt;
 p { margin: 0 0 6pt 0; orphans: 2; widows: 2; }
 code { font-family: "DejaVu Sans Mono", monospace; font-size: 8.6pt;
        background: #f1f3f5; padding: 0.5pt 2.5pt; }
-pre { background: #f1f3f5; padding: 7pt 9pt; border-left: 2.5pt solid #9aa1ac;
+pre { white-space: pre-wrap; background: #f1f3f5; padding: 7pt 9pt; border-left: 2.5pt solid #9aa1ac;
       font-size: 8.4pt; text-align: left; break-inside: avoid; }
 pre code { background: none; padding: 0; }
 table { border-collapse: collapse; width: 100%; margin: 9pt 0 12pt 0;
@@ -107,7 +126,46 @@ ul li ul li, ol li { list-style: revert; margin-left: 0; }
 sub, sup { font-size: 7.5pt; }
 """
 
-HTML(string=html, base_url=str(SRC_PATH.parent)).write_pdf(
-    str(OUT_PATH), stylesheets=[CSS(string=CSS_TEXT)]
+html = (
+    "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+    f"<title>{SRC_PATH.stem}</title><style>{CSS_TEXT}</style></head>"
+    f"<body>{body}</body></html>"
 )
-print(f"built {OUT_PATH.relative_to(ROOT)}")
+
+HTML_PATH = SRC_PATH.with_suffix(".html")
+
+
+def build_pdf():
+    try:
+        from weasyprint import HTML as _HTML
+    except Exception:
+        return False
+    try:
+        _HTML(string=html, base_url=str(SRC_PATH.parent)).write_pdf(str(OUT_PATH))
+        return True
+    except Exception as exc:
+        print(f"WeasyPrint failed: {exc}")
+        return False
+
+
+if build_pdf():
+    print(f"built {OUT_PATH.relative_to(ROOT)}")
+else:
+    import webbrowser
+    HTML_PATH.write_text(html, encoding="utf-8")
+    print(f"built {HTML_PATH.relative_to(ROOT)}")
+    print()
+    print("WeasyPrint is unavailable. On Windows it needs GTK, which the")
+    print("platform does not ship, so an HTML file was written instead.")
+    print()
+    print("To produce the PDF:")
+    print("  1. The file opens in your browser now (or open it manually).")
+    print("  2. Press Ctrl+P")
+    print("  3. Destination: 'Save as PDF'")
+    print("  4. Paper A4, Margins 'Default', tick 'Background graphics'")
+    print(f"  5. Save as {OUT_PATH.name} into the same folder")
+    print()
+    try:
+        webbrowser.open(HTML_PATH.as_uri())
+    except Exception:
+        print(f"Open manually: {HTML_PATH}")

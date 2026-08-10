@@ -1,0 +1,155 @@
+
+======================================================================
+SECTION 2 — Data and preprocessing
+======================================================================
+hourly observations : 3290
+train : 2016-01-11 17:00:00 to 2016-05-13 18:00:00  n=2954
+test  : 2016-05-13 19:00:00 to 2016-05-27 18:00:00  n=336
+train mean 97.5 sd 81.9 | test mean 100.6 sd 75.0
+
+======================================================================
+SECTION 3.1 — Distribution
+======================================================================
+  mean             97.78
+  median           63.33
+  std              81.21
+  min              28.33
+  max              608.33
+  skewness         2.39
+  excess kurtosis  6.33
+  p95/median       4.37
+
+======================================================================
+SECTION 3.2 — Seasonal structure
+======================================================================
+trough hour 3 = 48.2
+peak   hour 18 = 191.8
+peak/trough ratio 3.98
+weekday 96.7  weekend 100.6  ratio 1.040
+by day: Mon 111.5  Tue 87.1  Wed 89.9  Thu 90.4  Fri 105.2  Sat 106.2  Sun 94.9
+
+seasonal strength daily  (24) : 0.318
+seasonal strength weekly (168): 0.393
+
+======================================================================
+SECTION 3.3 — Stationarity (training sample)
+======================================================================
+                series test                 null  statistic  p_value  crit_5pct  lags_used  reject_null_5pct
+                 level  ADF    unit root present    -8.7610      0.0    -2.8625         28              True
+                 level KPSS series is stationary     0.0614      0.1     0.4630         23             False
+      first_difference  ADF    unit root present   -15.9483      0.0    -2.8625         28              True
+      first_difference KPSS series is stationary     0.0417      0.1     0.4630         68             False
+seasonal_difference_24  ADF    unit root present   -12.6725      0.0    -2.8625         25              True
+seasonal_difference_24 KPSS series is stationary     0.0150      0.1     0.4630         24             False
+   both_differences_24  ADF    unit root present   -17.4448      0.0    -2.8625         28              True
+   both_differences_24 KPSS series is stationary     0.0611      0.1     0.4630         71             False
+
+======================================================================
+SECTIONS 5, 7.4, 9.1 — Metrics table (paste as markdown)
+======================================================================
+| model                 |    MAE |    RMSE |   MASE |    Bias |
+|:----------------------|-------:|--------:|-------:|--------:|
+| sarimax_conditional   | 37.808 |  66.415 |  0.708 |  -5.254 |
+| feature_model         | 37.967 |  65.174 |  0.711 |  -5.232 |
+| sarimax_operational   | 38.513 |  66.38  |  0.721 |  -3.831 |
+| seasonal_naive_weekly | 43.457 |  81.409 |  0.813 | -13.16  |
+| seasonal_naive_daily  | 48.309 |  85.565 |  0.904 |   1.751 |
+| mean                  | 50.258 |  74.938 |  0.941 |  -3.287 |
+| naive                 | 85.551 | 110.39  |  1.601 |  50.977 |
+| drift                 | 85.802 | 110.679 |  1.606 |  51.368 |
+
+======================================================================
+SECTION 9.1 — Diebold-Mariano tests
+======================================================================
+Leading model: sarimax_conditional
+
+  vs feature_model            DM  -0.07  p 0.9410  not significant
+  vs sarimax_operational      DM  -1.49  p 0.1355  not significant
+  vs seasonal_naive_weekly    DM  -0.96  p 0.3353  not significant
+  vs seasonal_naive_daily     DM  -2.20  p 0.0275  SIGNIFICANT
+  vs mean                     DM -14.30  p 0.0000  SIGNIFICANT
+  vs naive                    DM  -3.99  p 0.0001  SIGNIFICANT
+  vs drift                    DM  -3.99  p 0.0001  SIGNIFICANT
+
+  sarimax_conditional vs sarimax_operational: DM -1.49  p 0.1355  not significant
+  feature_model vs seasonal_naive_weekly: DM -1.12  p 0.2621  not significant
+  sarimax_conditional vs seasonal_naive_weekly: DM -0.96  p 0.3353  not significant
+
+======================================================================
+SECTION 6.3 — Conditional vs operational SARIMAX
+======================================================================
+conditional 0.708  operational 0.721
+gap 0.013 MASE, 1.9% relative
+
+======================================================================
+SECTION 9.2 — MAE by lead time
+======================================================================
+|   lead_time |   mean |   naive |   seasonal_naive_daily |   seasonal_naive_weekly |   drift |   sarimax_conditional |   sarimax_operational |   feature_model |
+|------------:|-------:|--------:|-----------------------:|------------------------:|--------:|----------------------:|----------------------:|----------------:|
+|           1 |   32.1 |    32.5 |                   37.6 |                    40.1 |    32.5 |                  16.1 |                  15.9 |            28.8 |
+|           6 |   42.9 |    97.1 |                    4.6 |                     4.3 |    97.3 |                  11.6 |                  12.3 |            10.1 |
+|          12 |   36.6 |    90.8 |                   12.9 |                    14.5 |    91.2 |                  13   |                  15.7 |             6.9 |
+|          18 |   54.2 |    79.5 |                   81.9 |                    73   |    79.8 |                  55.4 |                  54.5 |            55.8 |
+|          24 |   62.8 |    64.4 |                   64.4 |                    83.2 |    64.5 |                  49.4 |                  49.6 |            53.9 |
+
+degradation lead 1 -> lead 24:
+  mean                       32.1 ->   62.8  (1.95x)
+  naive                      32.5 ->   64.4  (1.98x)
+  seasonal_naive_daily       37.6 ->   64.4  (1.71x)
+  seasonal_naive_weekly      40.1 ->   83.2  (2.07x)
+  drift                      32.5 ->   64.5  (1.98x)
+  sarimax_conditional        16.1 ->   49.4  (3.07x)
+  sarimax_operational        15.9 ->   49.6  (3.11x)
+  feature_model              28.8 ->   53.9  (1.87x)
+
+======================================================================
+SECTION 9.3 — Residual diagnostics (leading model)
+======================================================================
+Ljung-Box  24 lags : Q = 204.8, p = 1.3e-30
+Ljung-Box  48 lags : Q = 261.7, p = 3.4e-31
+residual ACF lag 1 : 0.564   lag 24 : 0.156
+95% band           : +/- 0.107
+skewness           : -2.68
+excess kurtosis    : 8.68
+corr(|resid|, act) : 0.841
+
+======================================================================
+SECTION 7.3 — Feature importance
+======================================================================
+| feature      |   importance |   std |
+|:-------------|-------------:|------:|
+| hour         |       11.252 | 0.545 |
+| hour_sin     |        2.304 | 0.542 |
+| dow_sin      |        2.058 | 0.48  |
+| RH_5_origin  |        0.631 | 0.22  |
+| roll_std_168 |        0.598 | 0.149 |
+| RH_3_origin  |        0.218 | 0.183 |
+| dayofweek    |        0.208 | 0.46  |
+| hour_cos     |        0.168 | 0.378 |
+| RH_4_origin  |        0.089 | 0.034 |
+| roll_std_24  |        0.083 | 0.052 |
+
+  calendar                 90.7%
+  target lags / rolling    3.9%
+  lagged exogenous         5.5%
+
+======================================================================
+SECTION 7.2 — Boosting iterations selected
+======================================================================
+selected iterations : 25
+holdout MAE         : 41.21
+holdout cutoff      : 2016-04-26 09:00:00
+
+holdout MAE by iteration:
+      1 : 47.26
+     25 : 41.21
+     50 : 43.23
+    100 : 44.18
+    200 : 46.68
+    400 : 48.95
+    800 : 49.53
+   1500 : 50.68
+
+======================================================================
+Transfer these into reports/report.md, then re-run verify.py
+======================================================================

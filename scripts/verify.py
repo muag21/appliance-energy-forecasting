@@ -167,7 +167,7 @@ def check_outputs() -> None:
 
 def check_report() -> None:
     report = ROOT / "reports" / "report.md"
-    text = report.read_text()
+    text = report.read_text(encoding="utf-8")
 
     placeholders = re.findall(r"⟦FILL.*?⟧", text, flags=re.S)
     check("No draft placeholders remain",
@@ -211,7 +211,7 @@ def check_numbers_match() -> None:
         return
 
     res = pd.read_csv(metrics)
-    text = (ROOT / "reports" / "report.md").read_text()
+    text = (ROOT / "reports" / "report.md").read_text(encoding="utf-8")
 
     missing = [
         f"{row.model} ({row.MASE:.3f})"

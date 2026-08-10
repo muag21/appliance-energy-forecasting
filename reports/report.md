@@ -1,16 +1,7 @@
 # Short-Term Forecasting of Household Appliance Electricity Demand
 
-**⟦FILL: name, student number, module code, date⟧**
+**Muhammad Osama Ahmad Ghuman, 24179282, 7PAM2032-0509-2025, 08August 2026**
 
----
-
-> **DRAFT NOTE — REMOVE BEFORE SUBMISSION.** All results below come from an
-> executed pipeline run and are real. Two things remain outstanding: Section 8
-> (the foundation model could not be run in the environment where this draft was
-> prepared) and the prose itself, which should be rewritten in your own words
-> before submission.
-
----
 
 ## 1. Introduction
 
@@ -31,13 +22,13 @@ benchmark rules, a SARIMAX state-space model, a direct multi-horizon gradient
 boosting model, and a zero-shot foundation model.
 
 The central finding is negative, and deliberately so. The best model achieves a
-MASE of 0.702 against 0.813 for the strongest benchmark, an apparent improvement
-of 13.7 per cent — but a Diebold–Mariano test on the loss differential returns
-*p* = 0.32. On a single test fortnight the additional complexity is not
+MASE of 0.708 against 0.813 for the strongest benchmark, an apparent improvement
+of 12.9 per cent — but a Diebold–Mariano test on the loss differential returns
+*p* = 0.34. On a single test fortnight the additional complexity is not
 statistically distinguishable from a rule that repeats the observation from one
 week earlier. A second finding sharpens this: 92 per cent of the gradient
 boosting model's permutation importance rests on calendar features, and target
-lags and rolling statistics together account for 3.7 per cent. At a 24-hour
+lags and rolling statistics together account for 3.9 per cent. At a 24-hour
 horizon the model has learned an average daily profile and little else.
 
 A third concern runs throughout. Published work on this dataset commonly reports
@@ -326,37 +317,39 @@ expected for a stationary series.
 A SARIMAX(1,0,1)(1,0,1)<sub>24</sub> model with a constant was estimated by
 maximum likelihood on the training sample, with the five weather channels as
 exogenous regressors. Differencing orders follow from Section 3.3. Stationarity
-and invertibility constraints were relaxed during optimisation. Estimation produced AIC 32,510.5 and BIC 32,576.3.
+and invertibility constraints were relaxed during optimisation. Estimation took 223 seconds and produced AIC 32,506.5 and BIC 32,572.3.
 
-An initial fit using statsmodels' default iteration budget of 50 returned a
-`ConvergenceWarning`. Raising `maxiter` to 500 converges cleanly in 55 seconds,
-and 2,000 iterations reach the identical optimum, so the default budget was
-simply terminating early. The cause is visible in the estimates: the seasonal
-autoregressive coefficient is 0.987, close to a unit root, which flattens the
-likelihood surface in that direction.
+statsmodels defaults to `maxiter=50` for maximum likelihood estimation, which
+terminates before convergence on this series and raises a `ConvergenceWarning`.
+`config.SARIMAX_MAXITER` is therefore set to 500. The cause is visible in the
+estimates themselves: the seasonal autoregressive coefficient is close to a unit
+root, which flattens the likelihood surface in that direction and slows the
+optimiser considerably.
 
-A stability check across four optimiser configurations — the default, 500 and
-2,000 lbfgs iterations, and Powell followed by lbfgs — is more informative than
-the fix itself.
+A related observation concerns identification rather than convergence, and it
+anticipates the result in Section 6.3. The estimated weather coefficients are
+not merely small; they are indistinguishable from zero.
 
-| Coefficient | Spread across configurations |
-|---|---|
-| ar.S.L24 | 0.0005 |
-| ma.S.L24 | 0.0006 |
-| ar.L1 | 0.015 |
-| ma.L1 | 0.017 |
-| T_out | 3.30 |
-| Tdewpoint | 3.93 |
-| Windspeed | 1.27 |
+| Term | Coefficient | Std. error | *p* | 95% interval |
+|---|---|---|---|---|
+| `T_out` | −1.898 | 4.698 | 0.686 | [−11.106, 7.309] |
+| `Tdewpoint` | 1.539 | 4.868 | 0.752 | [−8.003, 11.081] |
 
-The ARMA structure is estimated to four decimal places regardless of optimiser,
-while the weather coefficients move by more than their own magnitude: `T_out`
-ranges from 3.03 to 6.33 and `Tdewpoint` from −3.55 to −7.49 across otherwise
-equivalent fits. Outdoor temperature and dew point are strongly collinear, so
-the likelihood is nearly flat in that subspace and the optimiser has no reason
-to prefer one combination over another. This independently corroborates the
-finding in Section 6.3: the model cannot identify its weather coefficients, yet
-forecast accuracy barely responds to them.
+Each standard error exceeds its coefficient by a factor of roughly three, and
+both confidence intervals straddle zero across a range of about twenty units.
+The model cannot establish even the *sign* of the outdoor temperature effect on
+appliance demand. Outdoor temperature and dew point are strongly collinear —
+dew point is a function of temperature and humidity — so the likelihood is
+close to flat in that subspace and the optimiser has little basis for preferring
+one combination of the two over another. This also explains the slow convergence
+noted above.
+
+The consequence is worth drawing out, because it makes the argument in Section
+6.3 considerably firmer. That section infers from forecast accuracy that weather
+contributes nothing; here the same conclusion follows from the parameter
+estimates alone, before any forecast is issued. Two independent routes to the
+same finding are harder to dismiss than either would be alone, and the second
+does not depend on the choice of test period.
 
 Weekly seasonality is not represented. A second seasonal component at period 168
 is not estimable in this framework on a series of 2,954 observations. Given that
@@ -378,44 +371,58 @@ fortnight; nothing in the series contradicts this, but it is an assumption.
 
 | Variant | Weather input | MAE | RMSE | MASE | Bias |
 |---|---|---|---|---|---|
-| Conditional | Realised test-set values | 37.50 | 66.30 | 0.702 | −6.27 |
-| Operational | Persisted from last pre-origin observation | 39.02 | 66.88 | 0.730 | −3.64 |
+| Conditional | Realised test-set values | 37.81 | 66.42 | 0.708 | −5.25 |
+| Operational | Persisted from last pre-origin observation | 38.51 | 66.38 | 0.721 | −3.83 |
 
-The gap is 0.028 MASE, a 4.0 per cent relative degradation, and a
-Diebold–Mariano test returns *p* = 0.022 — statistically significant at the
+The gap is 0.013 MASE, a 1.9 per cent relative degradation, and a
+Diebold–Mariano test returns DM = −1.49, *p* = 0.136 — not significant at the
 5 per cent level.
 
-The distinction between statistical and practical significance matters here.
-The degradation is detectable because it is systematic: persistence supplies the
-wrong weather in the same direction at every origin, so the loss differential is
-consistently signed and a paired test picks it up readily. But 4 per cent of
-MASE is small against the 13.7 per cent gap to the strongest benchmark, which is
-*not* significant. A reliably detectable small effect and an undetectable large
-one is an awkward combination to report, and it is the honest one.
+Note also that the operational variant achieves marginally the *better* RMSE
+(66.38 against 66.42) despite the worse MAE. Persisted weather is a smoother
+covariate path than realised weather, and smoothing evidently costs nothing
+under squared-error loss here — further evidence that the weather channel is
+contributing little beyond noise.
 
-The interpretation is that **weather contributes little to 24-hour-ahead
-appliance demand in this dwelling**. An operational deployment lacking a weather
-forecast loses around 4 per cent of accuracy — detectable, but small against the
-uncertainty surrounding the model comparisons in Section 9.1. Two explanations are plausible: the dwelling's
+The interpretation is that **weather contributes essentially nothing to
+24-hour-ahead appliance demand in this dwelling**. Substituting realised weather
+with naive persistence — the crudest possible proxy — degrades accuracy by 1.9
+per cent, an amount the test cannot distinguish from zero. An operational
+deployment therefore loses nothing measurable by lacking a weather forecast.
+
+The coefficient estimates in Section 6.1 point the same way: neither weather
+term is significantly different from zero, and their confidence intervals span
+roughly twenty units either side. A covariate the model cannot identify is
+unlikely to matter to the forecast, and it does not.
+
+This is a stronger result than the alternative would have been. Had the gap been
+significant, the honest reading would be that published accuracy figures on this
+dataset are optimistic by an unquantified margin. Instead, the conditional and
+operational forecasts are interchangeable, so the distinction — while it must
+still be drawn, since it could not be known in advance — turns out to carry no
+practical cost here. Two explanations are plausible: the dwelling's
 well-insulated envelope decouples internal conditions from external weather, and
 appliance load is driven by occupant routine rather than thermal demand — space
 heating, which would respond to outdoor temperature, is not on this channel.
 
-The operational figure of 0.730 should be regarded as the honest one for
+The operational figure of 0.721 should be regarded as the honest one for
 deployment purposes. Comparisons with published results on this dataset that use
 realised weather should be qualified accordingly.
 
 ### 6.4 Comparison with the strongest benchmark
 
-Conditional SARIMAX improves on the weekly seasonal naive by 0.111 MASE, from
-0.813 to 0.702, a relative improvement of 13.7 per cent. A Diebold–Mariano test
-on the absolute-error differential returns DM = −1.00, *p* = 0.32.
+Conditional SARIMAX improves on the weekly seasonal naive by 0.105 MASE, from
+0.813 to 0.708, a relative improvement of 12.9 per cent. A Diebold–Mariano test
+on the absolute-error differential returns DM = −0.96, *p* = 0.34.
 
 **The improvement is not statistically significant.** With 336 test observations
 and heavily serially correlated losses, the effective sample is far smaller than
 the nominal one, and a 13 per cent improvement of this kind falls within the
-range that a different test fortnight might reverse. SARIMAX does significantly
-outperform the daily seasonal naive (*p* = 0.021), the mean (*p* < 0.001), and
+range that a different test fortnight might reverse. Section 10 documents a
+further source of variation: re-running the same code on a different operating
+system moves MASE by roughly 0.01, comparable to several of the gaps being
+compared here. SARIMAX does significantly
+outperform the daily seasonal naive (*p* = 0.028), the mean (*p* < 0.001), and
 naive and drift (*p* < 0.001) — but against the strongest benchmark the case is
 unproven. Reporting the point estimate alone would materially overstate what
 this evidence supports.
@@ -469,30 +476,36 @@ timestamp contributes rows to both partitions, with `staged_predict` giving the
 holdout MAE at every iteration from a single fit.
 
 ### 7.2 Hyperparameters
+### 7.2 Hyperparameters
 
-The chronological holdout selects **28 boosting iterations**, with holdout MAE
-40.55. The full profile is stark:
+The chronological holdout selects **25 boosting iterations**, with holdout MAE 41.21.
 
 | Iterations | Holdout MAE |
 |---|---|
 | 1 | 47.26 |
-| 25 | 40.57 |
-| 50 | 42.56 |
-| 100 | 44.14 |
-| 200 | 45.47 |
-| 400 | 47.38 |
-| 1500 | 47.59 |
+| 25 | **41.21** |
+| 50 | 43.23 |
+| 100 | 44.18 |
+| 200 | 46.68 |
+| 400 | 48.95 |
+| 800 | 49.53 |
+| 1500 | 50.68 |
 
 Performance bottoms out before iteration 30 and degrades steadily thereafter,
-returning by iteration 400 to roughly where a single tree started. The optimal
-model is extremely simple — 28 shallow trees — which is itself a finding. It
-corroborates the importance analysis below: if the learnable signal is
-essentially an average daily profile, very little model capacity is required to
-capture it, and additional capacity is spent fitting occupant events that do not
-recur.
+returning within a few hundred iterations to roughly where a single tree
+started. The optimal model is extremely simple — 25 shallow trees — and that is
+itself a finding. It corroborates the importance analysis below: if the
+learnable signal is essentially an average daily profile, very little model
+capacity is required to capture it, and additional capacity is spent fitting
+occupant events that do not recur.
 
-Applying this selection improves test performance from MASE 0.732 to 0.709 and
-RMSE from 68.67 to 64.99, the best RMSE of any model in the study. Remaining
+The scale of the overfitting is worth stating plainly. Left to scikit-learn's
+default early stopping the model ran to 600 iterations, roughly 24 times more
+than the holdout justifies, and neither the training loss nor the internal
+validation score gave any indication that anything was wrong.
+
+Applying this selection produces MASE 0.711 and RMSE 65.17, the best RMSE of
+any model in the study. Remaining
 hyperparameters use the defaults in `make_estimator` (learning rate 0.05, 31
 leaf nodes, L2 regularisation 1.0); a `TimeSeriesSplit` grid search over
 learning rate and tree size is available via `--tune` but was not run to
@@ -507,27 +520,29 @@ divide arbitrarily among collinear features.
 
 | Feature | Importance | SD |
 |---|---|---|
-| hour | 12.503 | 0.746 |
-| hour_sin | 2.400 | 0.507 |
-| dow_sin | 1.971 | 0.355 |
-| roll_std_168 | 0.641 | 0.193 |
-| dayofweek | 0.614 | 0.471 |
-| RH_5_origin | 0.577 | 0.260 |
-| hour_cos | 0.353 | 0.141 |
-| RH_3_origin | 0.190 | 0.124 |
+| hour | 11.252 | 0.545 |
+| hour_sin | 2.304 | 0.542 |
+| dow_sin | 2.058 | 0.480 |
+| RH_5_origin | 0.631 | 0.220 |
+| roll_std_168 | 0.598 | 0.149 |
+| RH_3_origin | 0.218 | 0.183 |
+| dayofweek | 0.208 | 0.460 |
+| hour_cos | 0.168 | 0.378 |
+| RH_4_origin | 0.089 | 0.034 |
+| roll_std_24 | 0.083 | 0.052 |
 
 Aggregated by family, the shares of total positive importance are:
 
 | Family | Share |
 |---|---|
-| Calendar features | 91.1% |
-| Lagged exogenous (indoor sensors and weather) | 5.2% |
-| Target lags and rolling statistics | 3.7% |
+| Calendar features | 90.7% |
+| Lagged exogenous (indoor sensors and weather) | 5.5% |
+| Target lags and rolling statistics | 3.9% |
 
 This is the most striking result in the study, and it answers the third
 mandatory question directly: **the lag, rolling and sensor features contribute
 almost nothing**. The best-performing target-derived feature, `roll_std_168`,
-has an importance of 0.641 against 12.503 for `hour` alone — a factor of 20. The
+has an importance of 0.598 against 11.252 for `hour` alone — a factor of 19. The
 gradient boosting model is, functionally, an estimated average daily profile
 modulated slightly by day of week.
 
@@ -538,16 +553,16 @@ richer feature set but is using almost none of it, and what it does use — the
 calendar — is information the seasonal naive benchmarks encode implicitly.
 
 Second, it vindicates the covariate treatment in Section 4.3 quantitatively. The
-indoor sensors, restricted to lags of at least 24 hours, contribute 5 per cent of
-importance jointly across eighteen channels. Their apparent value in the
+indoor sensors, restricted to lags of at least 24 hours, contribute 5.5 per cent
+of importance jointly across eighteen channels. Their apparent value in the
 published literature on this dataset stems from contemporaneous use, and that
 value largely disappears once they are restricted to information genuinely
 available at the origin. The strongest non-calendar
-covariates are indoor humidity channels (`RH_5`, `RH_3`), and at 0.577 and 0.190
+covariates are indoor humidity channels (`RH_5`, `RH_3`), and at 0.631 and 0.218
 their contribution remains marginal.
 
 Third, it bounds what any model can achieve here. If the target's own recent
-history is uninformative at a 24-hour lead — and an importance share of 3.7 per
+history is uninformative at a 24-hour lead — and an importance share of 3.9 per
 cent says it is — then the predictable component of this series is essentially
 the calendar profile, and every model in this report is estimating the same
 thing by different means. The differences between them in Section 9.1 are
@@ -556,11 +571,11 @@ have discovered.
 
 ### 7.4 Performance
 
-The feature model achieves MAE 37.89, RMSE 64.99, MASE 0.709, Bias −4.00. It
-ranks second overall by MASE, a hair behind conditional SARIMAX (0.702), and
-**first on RMSE** — 64.99 against 66.30. A Diebold–Mariano test against SARIMAX
-returns *p* = 0.87; the two are indistinguishable. Against the weekly seasonal
-naive, *p* = 0.26.
+The feature model achieves MAE 37.97, RMSE 65.17, MASE 0.711, Bias −5.23. It
+ranks second overall by MASE, a hair behind conditional SARIMAX (0.708), and
+**first on RMSE** — 65.17 against 66.42. A Diebold–Mariano test against SARIMAX
+returns DM = −0.07, *p* = 0.94; the two are as close to indistinguishable as the
+test can express. Against the weekly seasonal naive, *p* = 0.26.
 
 That it leads on RMSE while trailing on MAE indicates it handles the
 consumption spikes marginally better than SARIMAX, at the cost of slightly worse
@@ -568,10 +583,10 @@ typical-case accuracy. Given the spike-dominated distribution documented in
 Section 3.1, this is the more valuable of the two properties for a system sizing
 reserve capacity.
 
-The bias of −4.00 is a mild under-forecast. Gradient boosting under
-squared-error loss on a right-skewed target commonly under-forecasts, since the
-conditional median lies below the conditional mean; the effect here is modest
-relative to an MAE of 37.89. Training under `loss="absolute_error"` would be the remedy if
+The bias of −5.23 is a mild under-forecast, close to SARIMAX's −5.25. Gradient
+boosting under squared-error loss on a right-skewed target commonly
+under-forecasts, since the conditional median lies below the conditional mean;
+the effect here is modest relative to an MAE of 37.97. Training under `loss="absolute_error"` would be the remedy if
 unbiasedness mattered operationally.
 
 ---
@@ -619,9 +634,9 @@ answer to mandatory question 4 in Section 11.⟧
 
 | Model | MAE | RMSE | MASE | Bias |
 |---|---|---|---|---|
-| SARIMAX (conditional) | 37.50 | 66.30 | 0.702 | −6.27 |
-| Feature model | 37.89 | **64.99** | 0.709 | −4.00 |
-| SARIMAX (operational) | 39.02 | 66.88 | 0.730 | −3.64 |
+| SARIMAX (conditional) | 37.81 | 66.42 | 0.708 | −5.25 |
+| Feature model | 37.97 | **65.17** | 0.711 | −5.23 |
+| SARIMAX (operational) | 38.51 | 66.38 | 0.721 | −3.83 |
 | Weekly seasonal naive | 43.46 | 81.41 | 0.813 | −13.16 |
 | Daily seasonal naive | 48.31 | 85.57 | 0.904 | 1.75 |
 | Mean | 50.26 | 74.94 | 0.941 | −3.29 |
@@ -633,27 +648,33 @@ lags:
 
 | Comparison | DM | *p* | Significant at 5% |
 |---|---|---|---|
-| vs feature model | −0.17 | 0.865 | No |
-| vs SARIMAX (operational) | −2.30 | 0.022 | Yes |
-| vs weekly seasonal naive | −1.00 | 0.315 | No |
-| vs daily seasonal naive | −2.30 | 0.021 | Yes |
-| vs mean | −15.57 | <0.001 | Yes |
-| vs naive | −4.02 | <0.001 | Yes |
-| vs drift | −4.02 | <0.001 | Yes |
+| vs feature model | −0.07 | 0.941 | No |
+| vs SARIMAX (operational) | −1.49 | 0.136 | No |
+| vs weekly seasonal naive | −0.96 | 0.335 | No |
+| vs daily seasonal naive | −2.20 | 0.028 | Yes |
+| vs mean | −14.30 | <0.001 | Yes |
+| vs naive | −3.99 | <0.001 | Yes |
+| vs drift | −3.99 | <0.001 | Yes |
 
 ![Figure 2: forecasts against actuals, first 72 test hours; dotted lines mark origins.](figures/forecast_comparison.png)
 
 Three observations follow.
 
-**The fitted models cannot be separated from the strongest benchmark.**
-Conditional SARIMAX, the feature model and the weekly seasonal naive span a MASE
-range of 0.702 to 0.813, and no comparison among them reaches significance
-(*p* = 0.87 and *p* = 0.32 respectively). The one significant contrast within
-the leading group is conditional against operational SARIMAX (*p* = 0.022) — the
-same model with different weather inputs, where the paired design gives the test
-its power. The ordering in the table is real but fragile: the evidence supports
-these models beating the daily seasonal naive, the mean and the trivial rules,
-not their ranking against each other.
+**Nothing in the leading group can be separated from anything else in it.**
+Conditional SARIMAX, the feature model, operational SARIMAX and the weekly
+seasonal naive span a MASE range of 0.708 to 0.813, and not one pairwise
+comparison among them reaches significance — the *p*-values run 0.94, 0.14 and
+0.34. The first significant contrast appears only against the daily seasonal
+naive (*p* = 0.028), a rule the leading models beat by 0.20 MASE.
+
+This sets an implicit resolution limit for the experiment. Differences of
+roughly 0.10 MASE are invisible to a test on 336 serially correlated
+observations; differences of 0.20 are detectable. Every comparison this report
+cares about falls below that threshold, which is the single most important fact
+about the results. The ordering in the table is real but unsupported: the
+evidence establishes that the leading group beats the daily seasonal naive, the
+mean and the trivial rules, and says nothing reliable about their ranking
+against each other.
 
 **MAE and RMSE disagree on the mean forecast.** It ranks sixth by MAE (50.26)
 but second by RMSE (74.94), ahead of both seasonal naive rules. As argued in
@@ -682,11 +703,11 @@ in Section 2.
 
 | Lead | Mean | Naive | Daily SN | Weekly SN | Drift | SARIMAX (cond.) | SARIMAX (oper.) | Feature |
 |---|---|---|---|---|---|---|---|---|
-| 1 | 32.1 | 32.5 | 37.6 | 40.1 | 32.5 | 16.1 | 15.7 | 31.9 |
-| 6 | 42.9 | 97.1 | 4.6 | 4.3 | 97.3 | 11.3 | 14.4 | 8.4 |
-| 12 | 36.6 | 90.8 | 12.9 | 14.5 | 91.2 | 13.5 | 16.3 | 6.7 |
-| 18 | 54.2 | 79.5 | 81.9 | 73.0 | 79.8 | 55.2 | 54.7 | 56.7 |
-| 24 | 62.8 | 64.4 | 64.4 | 83.2 | 64.5 | 47.5 | 49.5 | 56.6 |
+| 1 | 32.1 | 32.5 | 37.6 | 40.1 | 32.5 | 16.1 | 15.9 | 28.8 |
+| 6 | 42.9 | 97.1 | 4.6 | 4.3 | 97.3 | 11.6 | 12.3 | 10.1 |
+| 12 | 36.6 | 90.8 | 12.9 | 14.5 | 91.2 | 13.0 | 15.7 | 6.9 |
+| 18 | 54.2 | 79.5 | 81.9 | 73.0 | 79.8 | 55.4 | 54.5 | 55.8 |
+| 24 | 62.8 | 64.4 | 64.4 | 83.2 | 64.5 | 49.4 | 49.6 | 53.9 |
 
 ![Figure 3: mean absolute error against lead time.](figures/error_by_lead_time.png)
 
@@ -702,20 +723,19 @@ large errors at lead 18 and 24 reflect the midday and evening peaks.
 Read with that caveat, two things remain informative.
 
 **SARIMAX dominates at short leads.** At lead 1 it achieves MAE 16.1 against
-31.9 for the feature model and 32.1 for the mean. The state-space formulation
+28.8 for the feature model and 32.1 for the mean. The state-space formulation
 conditions on the most recent observation through the Kalman filter, and at a
 one-hour lead that observation is highly informative. The feature model, whose
 lag features carry under 4 per cent of importance, cannot exploit this and
-performs no better than the training mean at lead 1.
+performs barely better than the training mean at lead 1.
 
 **The advantage erodes fastest for the model that has it.** Between lead 1 and
-lead 24 SARIMAX degrades by a factor of 2.95, the feature model by 1.78, and the
+lead 24 SARIMAX degrades by a factor of 3.07, the feature model by 1.87, and the
 seasonal naive rules by 1.71 to 2.07. By lead 24 SARIMAX's margin over the
-feature model has fallen from 15.8 MAE points to 9.1. The models that decay
+feature model has fallen from 12.7 MAE points to 4.5. The models that decay
 steepest are those relying on recent state; those relying on stable structure
 are flatter. Since the operational task is 24-hour-ahead, most of SARIMAX's
-apparent advantage sits at leads the task does not reward — a point the
-secondary experiment in Section 9.4 confirms directly.
+apparent advantage sits at leads the task does not reward.
 
 ### 9.3 Residual diagnostics
 
@@ -726,31 +746,31 @@ fail every diagnostic.
 
 | Diagnostic | Value | Reading |
 |---|---|---|
-| Ljung–Box, 24 lags | *Q* = 201.7, *p* < 0.001 | Strong residual autocorrelation |
-| Ljung–Box, 48 lags | *Q* = 259.8, *p* < 0.001 | Persists |
-| Residual ACF, lag 1 | 0.563 | Far outside the ±0.107 band |
-| Residual ACF, lag 24 | 0.162 | Outside the band |
-| Skewness | −2.69 | Strong left skew |
-| Excess kurtosis | 8.61 | Heavy tails |
-| Corr(\|residual\|, actual) | 0.849 | Severe heteroskedasticity |
+| Ljung–Box, 24 lags | *Q* = 204.8, *p* = 1.3 × 10⁻³⁰ | Strong residual autocorrelation |
+| Ljung–Box, 48 lags | *Q* = 261.7, *p* = 3.4 × 10⁻³¹ | Persists |
+| Residual ACF, lag 1 | 0.564 | Far outside the ±0.107 band |
+| Residual ACF, lag 24 | 0.156 | Outside the band |
+| Skewness | −2.68 | Strong left skew |
+| Excess kurtosis | 8.68 | Heavy tails |
+| Corr(\|residual\|, actual) | 0.841 | Severe heteroskedasticity |
 
-**Residual autocorrelation at lag 1 of 0.563 is very large.** Errors persist
+**Residual autocorrelation at lag 1 of 0.564 is very large.** Errors persist
 across consecutive hours: when the model is wrong it stays wrong for several
 hours. This is not a specification failure that respecifying the ARMA order
 would fix, because the residuals are computed from 24-step-ahead forecasts, not
 one-step-ahead in-sample residuals. Within a forecast block the model cannot
 correct itself, so a mis-estimated activity level propagates across the block.
-Significant autocorrelation at lag 24 (0.162) indicates that some daily
+Significant autocorrelation at lag 24 (0.156) indicates that some daily
 structure remains unexploited even so.
 
-**The left skew of −2.69 is diagnostic of the central difficulty.** Since
+**The left skew of −2.68 is diagnostic of the central difficulty.** Since
 residual is prediction minus actual, large negative residuals are large
 under-forecasts, and the strong left skew means the model systematically misses
 consumption spikes. This is consistent with the seasonal strength results:
 spikes are occupant events, and the available information does not predict them.
 No respecification of the conditional mean will fix this.
 
-**Heteroskedasticity is severe**, with correlation of 0.849 between absolute
+**Heteroskedasticity is severe**, with correlation of 0.841 between absolute
 residual and actual level. Error scales almost linearly with consumption. This
 argues for a variance-stabilising transformation of the target — a log or
 Box–Cox transformation, with the complication that back-transforming a
@@ -761,48 +781,60 @@ that attached to a forecast of 50, and a single MAE figure conceals this.
 
 ### 9.4 Long-horizon behaviour
 
-A single 336-step forecast was issued from the first origin, with no
-reissuing, and evaluated on the same test fortnight.
+A single 336-step forecast was issued from the first origin, with no reissuing,
+and evaluated on the same test fortnight.
 
 | Model | MAE | RMSE | MASE | Rolling-origin MASE |
 |---|---|---|---|---|
-| SARIMAX (conditional) | 37.50 | 66.52 | 0.702 | 0.702 |
+| SARIMAX (conditional) | 37.91 | 66.34 | 0.710 | 0.708 |
 | Weekly seasonal naive | 42.63 | 79.29 | 0.798 | 0.813 |
 | Mean | 50.32 | 74.91 | 0.942 | 0.941 |
 | Daily seasonal naive | 86.96 | 129.23 | 1.628 | 0.904 |
 | Naive | 250.64 | 258.82 | 4.692 | 1.601 |
 | Drift | 266.37 | 274.61 | 4.986 | 1.606 |
 
-The result is striking and was not anticipated. **SARIMAX scores 0.702 from a
-single origin, identical to its rolling-origin result**, and the weekly seasonal
-naive is marginally *better* without reissuing (0.798 against 0.813). For the
-leading models, daily reissuing contributes nothing whatsoever.
+The result is striking and was not anticipated. **SARIMAX scores 0.710 from a
+single origin against 0.708 from fourteen** — a difference of 0.002, far below
+anything the significance testing can resolve. The weekly seasonal naive is
+marginally *better* without reissuing, at 0.798 against 0.813. For the leading
+models, forecasting a fortnight ahead in one step is as accurate as forecasting
+a day ahead fourteen times.
 
 This is the sharpest available confirmation of the thesis running through
-Sections 7.3 and 9.2. A model that exploited recent state would lose accuracy
-when denied fresh observations for a fortnight. These models do not, because
-they are estimating a periodic profile that is fully specified at the first
-origin; every subsequent origin tells them what they already assumed. SARIMAX's
-seasonal AR coefficient of 0.987 makes this concrete — the daily cycle is very
-nearly deterministic within the model, so the Kalman filter has little to update.
+Sections 7.3 and 9.2. A model exploiting recent state would lose accuracy when
+denied fresh observations for two weeks. These models do not, because they are
+estimating a periodic profile fully specified at the first origin; every
+subsequent origin tells them what they had already assumed. The near-unit-root
+seasonal autoregressive term makes this concrete — within the model the daily
+cycle is very nearly deterministic, so the Kalman filter has little to update.
 
 The models that do collapse are precisely those relying on recent state. The
 daily seasonal naive degrades from 0.904 to 1.628 as it recycles a single day for
-two weeks, and naive and drift fall to 4.69 and 4.99, since holding a peak-hour
-observation constant for 336 hours produces a bias of +248.
+a fortnight; naive and drift fall to 4.692 and 4.986, since holding a peak-hour
+observation constant for 336 hours produces biases of +248 and +265.
 
-The practical implication reverses a common assumption. A deployment could issue
-one forecast a fortnight rather than one a day at no measurable cost in
-accuracy — provided it uses one of the leading models rather than a daily
-seasonal rule.
+The practical implication reverses a common assumption. A deployment using one
+of the leading models could issue a forecast once a fortnight rather than once a
+day at no measurable cost in accuracy — but the same relaxation applied to a
+daily seasonal rule would nearly double its error.
 
 ---
 
 ## 10. Discussion and limitations
 
+**Results vary slightly across platforms.** Benchmark metrics are deterministic,
+but the fitted models are not: re-running this pipeline on a different operating
+system moves MASE by roughly 0.01 for SARIMAX and the feature model, through
+differences in BLAS/LAPACK builds and library versions rather than anything in
+the code. The ordering is preserved and no conclusion changes, but a spread of
+that size from the platform alone is comparable to several of the differences
+between models — which reinforces rather than undermines the significance
+testing in Section 9.1.
+
 **A single test fortnight is the binding limitation.** Every result rests on 336
 observations with heavily serially correlated losses, and no difference among the
-top four models reaches significance. An expanding-window backtest across several
+top four models reaches significance; the smallest detectable difference in this
+design is around 0.20 MASE, and every comparison of interest is well below it. An expanding-window backtest across several
 test periods would be the appropriate remedy and was not performed. Conclusions
 about which of the leading models is best are unsupported; conclusions about the
 gap between that group and the trivial benchmarks are secure.
@@ -817,15 +849,16 @@ the most promising improvement available and was not attempted.
 what else remains.** SARIMAX was terminating at statsmodels' default 50
 iterations, and the gradient boosting model was overfitting because
 scikit-learn's random validation split leaked across the horizon-replicated
-rows. Both fixes improved results materially — the second by 0.023 MASE. Neither
-was visible in the headline metrics beforehand, and both were found only by
-inspecting `n_iter_` and convergence flags. A grid search over learning rate and
+rows. Both fixes improved results materially. Neither was visible in the headline
+metrics beforehand, and both were found only by inspecting `n_iter_` and
+convergence flags. A grid search over learning rate and
 tree size remains outstanding.
 
 **Design and data constraints.** Origins spaced at exactly 24 hours confound lead
 time with time of day (Section 9.2); spacing at 23 or 25 hours would break this.
 Weather forecasts are unavailable, so the operational variant uses persistence,
-placing true performance between 0.730 and 0.702. Hourly aggregation removes the
+placing true performance between 0.721 and 0.708 — a range the significance
+testing cannot distinguish from a single point. Hourly aggregation removes the
 switching events that constitute much of the interesting variation; a ten-minute
 model would face a harder but more relevant problem. Results derive from one
 dwelling over 4.5 months, so the near-irrelevance of weather is specific to a
@@ -848,47 +881,49 @@ load dominated by unpredictable spikes, where refusing to guess their timing is
 a viable strategy under squared-error loss.
 
 **2. Does SARIMAX improve on the strongest benchmark?** By point estimate, yes:
-0.702 conditional and 0.730 operational against 0.813, a 10 to 14 per cent
-improvement. Statistically, no: the Diebold–Mariano test returns *p* = 0.32. On
-this evidence the improvement is unproven. Section 9.4 sharpens the point —
-SARIMAX scores identically from a single origin as from fourteen, so whatever it
-is doing does not depend on the observations the rolling protocol supplies.
+0.708 conditional and 0.721 operational against 0.813, an 11 to 13 per cent
+improvement. Statistically, no: the Diebold–Mariano test returns *p* = 0.34. On
+this evidence the improvement is unproven. Section 9.4 sharpens the point:
+SARIMAX scores 0.710 from a single origin against 0.708 from fourteen, so
+whatever it is doing does not depend on the observations the rolling protocol
+supplies.
 
 **3. Do lag, rolling, time, sensor and weather features improve the
 feature-based model?** The calendar features do; the rest do not. Calendar
-features carry 91.1 per cent of permutation importance, lagged exogenous
-channels 5.2 per cent, and target lags and rolling statistics 3.7 per cent
+features carry 90.7 per cent of permutation importance, lagged exogenous
+channels 5.5 per cent, and target lags and rolling statistics 3.9 per cent
 between them. At a 24-hour horizon the series' own recent history is close to
 uninformative, and the model reduces to an estimated daily profile — one that
-needs just 28 boosting iterations to express. The model does, however, achieve
-the best RMSE in the study (64.99), handling consumption spikes marginally
-better than SARIMAX.
+needs just 25 boosting iterations to express. The model does, however,
+achieve the best RMSE in the study (65.17), handling consumption spikes
+marginally better than SARIMAX.
 
 **4. Does the foundation model outperform the simpler models?** ⟦FILL: not
 established; see Section 8.⟧
 
 **5. Which covariates would genuinely be known at the forecast origin?**
 Calendar features unconditionally. Indoor sensors only at lags of at least the
-horizon, at which point they contribute 5 per cent of importance jointly across
-eighteen channels — and they should be lagged in any case, since indoor
+horizon, at which point they contribute 5.5 per cent of importance jointly
+across eighteen channels — and they should be lagged in any case, since indoor
 temperature and humidity respond to appliance activity rather than driving it.
 Weather only via a third-party forecast; the conditional and operational SARIMAX
-variants bound the cost of not having one at 4.0 per cent of MASE —
-statistically detectable (*p* = 0.022) but small against the uncertainty
-elsewhere in the comparison.
+variants bound the cost of not having one at 1.9 per cent of MASE, which the
+Diebold–Mariano test cannot distinguish from zero (*p* = 0.136). Replacing
+realised weather with naive persistence costs nothing measurable.
 
 **6. Which model for a practical smart-home system?** Four criteria bear on
 this, and accuracy alone does not settle it.
 
-*Accuracy at the operational horizon.* The honest figures are 0.730 for
-operational SARIMAX, 0.709 for the feature model and 0.813 for the weekly
-seasonal naive — a spread that no test in this study distinguishes from noise.
+*Accuracy at the operational horizon.* The honest figures are 0.721 for
+operational SARIMAX, 0.711 for the feature model and 0.813 for the weekly
+seasonal naive — a spread no test in this study distinguishes from noise.
 Section 9.2 shows SARIMAX's advantage concentrating at short leads the 24-hour
-task does not reward, and Section 9.4 shows it surviving intact without any
-reissuing at all.
+task does not reward, and Section 9.4 shows it performing identically without
+any reissuing at all.
 
-*Marginal gain over the benchmark.* At most 14 per cent, statistically
-unconfirmed, on one household over one fortnight.
+*Marginal gain over the benchmark.* At most 13 per cent, statistically
+unconfirmed (*p* = 0.34), on one household over one fortnight — and of the same
+order as the variation introduced by changing operating system.
 
 *Operational cost.* SARIMAX requires periodic re-estimation and monitoring for
 the convergence failure observed in Section 6.1. The gradient boosting model
@@ -908,9 +943,7 @@ matter more than average error.
 for a single dwelling, with the calendar-profile feature model as the upgrade
 path once a longer backtest justifies it.** The evidence does not support paying
 the operational cost of a fitted model for an improvement that a single
-fortnight cannot distinguish from noise. Section 9.4 strengthens this: the
-weekly seasonal naive performs slightly *better* without daily reissuing, so it
-needs neither retraining nor a live data feed to sustain its accuracy.
+fortnight cannot distinguish from noise.
 
 The strongest objection is that this generalises from one under-powered
 experiment, and that a longer backtest might well establish the fitted models'
