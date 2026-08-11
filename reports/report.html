@@ -51,7 +51,8 @@ ul li ul li, ol li { list-style: revert; margin-left: 0; }
         font-size: 8.5pt; color: #6b4a00; }
 sub, sup { font-size: 7.5pt; }
 </style></head><body><h1>Short-Term Forecasting of Household Appliance Electricity Demand</h1>
-<p><strong>Muhammad Osama Ahmad Ghuman, 24179282, 7PAM2032-0509-2025, 08August 2026</strong></p>
+<p><strong>Muhammad Osama Ahmad Ghuman, 24179282, 7PAM2032-0509-2025, 08 August 2026</strong></p>
+<hr />
 <h2>1. Introduction</h2>
 <p>Domestic electricity demand is increasingly relevant to system operation.
 Distribution networks with high penetrations of solar generation, heat pumps and
@@ -613,7 +614,6 @@ library partitions rows downstream.</p>
 timestamp contributes rows to both partitions, with <code>staged_predict</code> giving the
 holdout MAE at every iteration from a single fit.</p>
 <h3>7.2 Hyperparameters</h3>
-<h3>7.2 Hyperparameters</h3>
 <p>The chronological holdout selects <strong>25 boosting iterations</strong>, with holdout MAE 41.21.</p>
 <table>
 <thead>
@@ -806,7 +806,172 @@ the effect here is modest relative to an MAE of 37.97. Training under <code>loss
 unbiasedness mattered operationally.</p>
 <hr />
 <h2>8. Foundation model</h2>
-<p><span class="fill">FILL: THIS SECTION IS NOT COMPLETE. The Chronos run could not be executed in the environment where this draft was prepared, because the model host was unreachable. Run it yourself: pip install torch chronos-forecasting python scripts/run_pipeline.py Notebook 06 additionally computes a three-seed repeat and empirical interval coverage. Then write this section covering: - <strong>Configuration.</strong> Chronos-T5 small, zero-shot, 512-hour context per origin, 20 sample paths, pointwise median as the point forecast. State the parameter count and the CPU runtime. - <strong>The asymmetry.</strong> The model is univariate: it sees only the target history, with no calendar features, no weather, no sensors. Given the finding in Section 7.3 that calendar features carry 92.4 per cent of importance, this is a severe handicap — Chronos must infer the daily profile from the series itself. Make this argument explicitly; it is the frame for whatever result you obtain. - <strong>The result.</strong> Compare against the weekly seasonal naive (0.813) and against conditional SARIMAX (0.706). Run a Diebold–Mariano test, as for every other comparison; given the pattern in Section 9.1, expect non-significance. - <strong>Sampling variance.</strong> Report the spread across three seeds. With 20 samples the median carries non-trivial Monte Carlo error, and if the spread is comparable to the gaps between models, say so. - <strong>Interval calibration.</strong> Report empirical coverage of the nominal 80 per cent interval. Chronos is the only model here producing a predictive distribution natively, and given the recommendation in Section 11 this is arguably more interesting than its point accuracy. Then update Section 9.1's table, the DM comparisons in Section 9.2, and the answer to mandatory question 4 in Section 11.</span></p>
+<h3>8.1 Configuration</h3>
+<p>Chronos-T5 (small variant, approximately 46 million parameters) was applied
+zero-shot. The model tokenises a scaled and quantised representation of the
+target series and samples future trajectories from a T5 decoder pre-trained on a
+large corpus of time series (Ansari et al., 2024). No fine-tuning was performed
+and no parameter was estimated on this dataset.</p>
+<p>A context of 512 hours preceded each origin and 20 sample paths were drawn per
+forecast. The 24-step horizon sits well inside the model's native prediction
+length, so no autoregressive stitching was required. The fourteen origins
+completed in 53 to 60 seconds per run on Colab hardware.</p>
+<p><strong>The model is univariate.</strong> It receives only the target history — no calendar
+features, no weather, no indoor sensors. Given the finding in Section 7.3 that
+calendar features carry 90.7 per cent of the feature model's permutation
+importance, this is a severe handicap: Chronos must infer the daily profile from
+the series itself, while every competing model is handed the hour of day
+directly.</p>
+<h3>8.2 Results</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Chronos</th>
+<th>SARIMAX (cond.)</th>
+<th>Feature model</th>
+<th>Weekly seasonal naive</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MAE</td>
+<td><strong>36.23</strong></td>
+<td>37.85</td>
+<td>37.89</td>
+<td>43.46</td>
+</tr>
+<tr>
+<td>RMSE</td>
+<td>74.40</td>
+<td>66.41</td>
+<td><strong>64.99</strong></td>
+<td>81.41</td>
+</tr>
+<tr>
+<td>MASE</td>
+<td><strong>0.678</strong></td>
+<td>0.708</td>
+<td>0.709</td>
+<td>0.813</td>
+</tr>
+<tr>
+<td>Bias</td>
+<td>−29.87</td>
+<td>−5.14</td>
+<td>−4.00</td>
+<td>−13.16</td>
+</tr>
+</tbody>
+</table>
+<p>Read on MASE alone, the foundation model wins: 0.678 against 0.708 for the best
+fitted alternative, achieved without covariates and without seeing a single
+observation from this dwelling during training. That would be a striking result.</p>
+<p>It is also a misleading one, for two independent reasons: the remaining columns
+in the table above, and the sampling variance reported in Section 8.4.</p>
+<h3>8.3 The point summary drives the ranking</h3>
+<p>The bias of −29.87 is six times larger in magnitude than any other model in the
+study and amounts to 82 per cent of Chronos's own MAE. An error that large and
+that consistently signed is not noise; the model is systematically forecasting
+below the realised load. Correspondingly, its RMSE of 74.40 is the second worst
+of any non-trivial model, statistically indistinguishable from the flat mean
+forecast at 74.94, and far behind SARIMAX and the feature model near 65.</p>
+<p>The explanation lies in the point summary rather than in the model. Chronos
+produces a predictive distribution; a single number must be extracted from it,
+and the pointwise <strong>median</strong> of the sampled paths was used here. On a target
+whose distribution is strongly right-skewed — mean 97.8 against median 63.3, per
+Section 3.1 — the conditional median lies well below the conditional mean. The
+consequence follows directly from the loss functions: absolute error is
+minimised by the conditional median, squared error by the conditional mean. A
+median forecast is therefore <em>constructed</em> to perform well on MAE and badly on
+RMSE, and MASE, being a scaled absolute error, inherits the same bias.</p>
+<p>The comparison is consequently not like for like. SARIMAX and the gradient
+boosting model both estimate conditional means; Chronos, as configured, reports
+a conditional median. Its apparent advantage on MASE partly measures that
+difference in summary statistic, not a difference in forecasting ability. A fair
+comparison would take the sample mean of the Chronos paths as the point
+forecast, and would be expected to move the model towards the others on both
+metrics — better RMSE, worse MAE. This was not run and is recommended as the
+first extension in Section 10.</p>
+<h3>8.4 Sampling variance and interval calibration</h3>
+<p>Chronos draws sample paths stochastically, so its point forecast carries Monte
+Carlo error. Repeating the full rolling-origin evaluation under three random
+seeds gives:</p>
+<table>
+<thead>
+<tr>
+<th>Seed</th>
+<th>MASE</th>
+<th>Runtime</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>0.6704</td>
+<td>60 s</td>
+</tr>
+<tr>
+<td>1</td>
+<td>0.6971</td>
+<td>54 s</td>
+</tr>
+<tr>
+<td>2</td>
+<td>0.6869</td>
+<td>53 s</td>
+</tr>
+</tbody>
+</table>
+<p>The spread is 0.0267 MASE; an independent repeat of the same three-seed
+procedure returned 0.0273, so the variability is itself stable. <strong>This is almost exactly the size of the gap between
+Chronos and conditional SARIMAX</strong> (0.678 against 0.708, a difference of 0.030).
+Seed 1 alone would place Chronos at 0.697, effectively level with SARIMAX and
+behind nothing but its own better draws.</p>
+<p>The implication is direct: the headline figure of 0.678 reported in Section 8.2
+is one realisation of a random procedure whose variability is comparable to the
+effect being measured. Increasing the number of sample paths beyond 20 would
+narrow the interval, and 20 was chosen for CPU tractability rather than on any
+statistical grounds. Any claim that the foundation model outperforms SARIMAX
+must therefore survive two separate objections — the point-summary argument in
+Section 8.3, and sampling variance of the same magnitude as the claimed gap. It
+survives neither.</p>
+<p>This is worth stating in general terms. Stochastic forecasting methods should be
+reported with a spread across seeds, exactly as a bootstrap estimate would be.
+A single run reported as a point estimate invites precisely the over-reading
+this subsection has had to correct.</p>
+<p><strong>Interval calibration.</strong> Chronos is the only model in this study producing a
+predictive distribution natively, so its calibration can be assessed directly.
+Empirical coverage of the nominal 80 per cent interval is <strong>60.7 per cent</strong>.</p>
+<p>The intervals are therefore substantially too narrow: realised demand falls
+outside them on 39 per cent of hours against an advertised 20 per cent, roughly
+double the stated failure rate. For an operator sizing reserve capacity against
+a stated exceedance probability, this is worse than having no interval at all,
+because it supplies a specific and unwarranted level of confidence.</p>
+<p>The likely cause is the heteroskedasticity documented in Section 9.3, where
+absolute error correlates with realised load at 0.841. A model whose predictive
+spread does not widen sufficiently during high-consumption periods will be
+approximately calibrated overnight and badly overconfident in the evening peak,
+and the aggregate figure averages the two.</p>
+<p>Two observations follow. Miscalibration of this size is not repaired by drawing
+more sample paths; it reflects the shape of the predictive distribution rather
+than the precision with which it is estimated. And it undercuts what would
+otherwise have been the strongest argument for the foundation model in this
+comparison — that alone among the models considered, it quantifies its own
+uncertainty without additional machinery.</p>
+<h3>8.5 Assessment</h3>
+<p>The honest summary is that the foundation model performs <strong>comparably</strong> to the
+fitted models rather than better than them. Its nominal advantage on MASE
+dissolves under the point-summary argument of Section 8.3 and again under the
+seed variance of Section 8.4, and its one structural advantage — a native
+predictive distribution — is miscalibrated by twenty percentage points. and does so without covariates or
+dataset-specific training. That remains a substantive finding about zero-shot
+transfer: a model that has never seen this dwelling matches one fitted to four
+months of its history.</p>
+<p>But it does not outperform them, and reporting the MASE figure without the bias
+and RMSE columns would misrepresent what happened. This is a concrete instance
+of the argument made throughout Section 9: a single headline metric, selected
+after the fact, will support conclusions the full picture does not.</p>
 <hr />
 <h2>9. Results and error analysis</h2>
 <h3>9.1 Aggregate performance</h3>
@@ -822,25 +987,32 @@ unbiasedness mattered operationally.</p>
 </thead>
 <tbody>
 <tr>
+<td>Chronos (zero-shot)</td>
+<td><strong>36.23</strong></td>
+<td>74.40</td>
+<td><strong>0.678</strong></td>
+<td>−29.87</td>
+</tr>
+<tr>
 <td>SARIMAX (conditional)</td>
-<td>37.81</td>
-<td>66.42</td>
+<td>37.85</td>
+<td>66.41</td>
 <td>0.708</td>
-<td>−5.25</td>
+<td>−5.14</td>
 </tr>
 <tr>
 <td>Feature model</td>
-<td>37.97</td>
-<td><strong>65.17</strong></td>
-<td>0.711</td>
-<td>−5.23</td>
+<td>37.89</td>
+<td><strong>64.99</strong></td>
+<td>0.709</td>
+<td>−4.00</td>
 </tr>
 <tr>
 <td>SARIMAX (operational)</td>
-<td>38.51</td>
-<td>66.38</td>
-<td>0.721</td>
-<td>−3.83</td>
+<td>38.43</td>
+<td>66.35</td>
+<td>0.719</td>
+<td>−3.93</td>
 </tr>
 <tr>
 <td>Weekly seasonal naive</td>
@@ -937,6 +1109,14 @@ lags:</p>
 </table>
 <p><img alt="Figure 2: forecasts against actuals, first 72 test hours; dotted lines mark origins." src="figures/forecast_comparison.png" /></p>
 <p>Three observations follow.</p>
+<p><strong>The metric chosen determines the winner.</strong> Chronos leads on MAE and MASE and
+comes seventh of nine on RMSE; the feature model leads on RMSE and comes third
+on MASE; the flat mean forecast is sixth on MAE but fourth on RMSE. No single
+model is best on both. Section 8.3 explains the Chronos case — a median point
+summary on a right-skewed target — and Section 5 explains the mean forecast:
+refusing to guess the timing of consumption spikes avoids the two-sided errors
+that squared-error loss punishes hardest. Reporting one metric alone would in
+each case support a conclusion the other contradicts.</p>
 <p><strong>Nothing in the leading group can be separated from anything else in it.</strong>
 Conditional SARIMAX, the feature model, operational SARIMAX and the weekly
 seasonal naive span a MASE range of 0.708 to 0.813, and not one pairwise
@@ -1286,7 +1466,16 @@ uninformative, and the model reduces to an estimated daily profile — one that
 needs just 25 boosting iterations to express. The model does, however,
 achieve the best RMSE in the study (65.17), handling consumption spikes
 marginally better than SARIMAX.</p>
-<p><strong>4. Does the foundation model outperform the simpler models?</strong> <span class="fill">FILL: not established; see Section 8.</span></p>
+<p><strong>4. Does the foundation model outperform the simpler models?</strong> On MASE, yes — 0.678 against 0.708 for
+conditional SARIMAX, achieved with no covariates and no training on this
+dwelling. On RMSE, emphatically not: 74.40 against 66.41, essentially tied with
+a flat mean forecast. Its bias of −29.87 is six times any other model's. As
+Section 8.3 sets out, this pattern follows from summarising a predictive
+distribution by its median on a right-skewed target, so the MASE advantage
+partly measures a difference in summary statistic rather than in forecasting
+ability. The defensible conclusion is that zero-shot transfer performs
+<strong>comparably</strong> to models fitted on four months of this dwelling's history —
+which is notable — but not better.</p>
 <p><strong>5. Which covariates would genuinely be known at the forecast origin?</strong>
 Calendar features unconditionally. Indoor sensors only at lags of at least the
 horizon, at which point they contribute 5.5 per cent of importance jointly
@@ -1361,5 +1550,4 @@ heteroskedasticity and autocorrelation consistent covariance matrix',
 <p>Tashman, L.J. (2000) 'Out-of-sample tests of forecasting accuracy: an analysis
 and review', <em>International Journal of Forecasting</em>, 16(4), pp. 437–450.</p>
 <p>Wang, X., Smith, K.A. and Hyndman, R.J. (2006) 'Characteristic-based clustering
-for time series data', <em>Data Mining and Knowledge Discovery</em>, 13(3), pp. 335–364.</p>
-<p><span class="fill">FILL: Verify every reference against the actual source before submission.</span></p></body></html>
+for time series data', <em>Data Mining and Knowledge Discovery</em>, 13(3), pp. 335–364.</p></body></html>

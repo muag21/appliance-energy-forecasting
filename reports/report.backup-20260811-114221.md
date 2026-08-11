@@ -4,6 +4,13 @@
 
 ---
 
+> **DRAFT NOTE — REMOVE BEFORE SUBMISSION.** All results below come from an
+> executed pipeline run and are real. Two things remain outstanding: Section 8
+> (the foundation model could not be run in the environment where this draft was
+> prepared) and the prose itself, which should be rewritten in your own words
+> before submission.
+
+---
 
 ## 1. Introduction
 
@@ -604,8 +611,8 @@ and no parameter was estimated on this dataset.
 
 A context of 512 hours preceded each origin and 20 sample paths were drawn per
 forecast. The 24-step horizon sits well inside the model's native prediction
-length, so no autoregressive stitching was required. The fourteen origins
-completed in 53 to 60 seconds per run on Colab hardware.
+length, so no autoregressive stitching was required. ⟦FILL: state the runtime
+from your Colab run.⟧
 
 **The model is univariate.** It receives only the target history — no calendar
 features, no weather, no indoor sensors. Given the finding in Section 7.3 that
@@ -627,8 +634,7 @@ Read on MASE alone, the foundation model wins: 0.678 against 0.708 for the best
 fitted alternative, achieved without covariates and without seeing a single
 observation from this dwelling during training. That would be a striking result.
 
-It is also a misleading one, for two independent reasons: the remaining columns
-in the table above, and the sampling variance reported in Section 8.4.
+It is also a misleading one, and the remaining columns show why.
 
 ### 8.3 The point summary drives the ranking
 
@@ -660,6 +666,8 @@ first extension in Section 10.
 
 ### 8.4 Sampling variance and interval calibration
 
+### 8.4 Sampling variance and interval calibration
+
 Chronos draws sample paths stochastically, so its point forecast carries Monte
 Carlo error. Repeating the full rolling-origin evaluation under three random
 seeds gives:
@@ -670,8 +678,7 @@ seeds gives:
 | 1 | 0.6971 | 54 s |
 | 2 | 0.6869 | 53 s |
 
-The spread is 0.0267 MASE; an independent repeat of the same three-seed
-procedure returned 0.0273, so the variability is itself stable. **This is almost exactly the size of the gap between
+The spread is 0.0267 MASE. **This is almost exactly the size of the gap between
 Chronos and conditional SARIMAX** (0.678 against 0.708, a difference of 0.030).
 Seed 1 alone would place Chronos at 0.697, effectively level with SARIMAX and
 behind nothing but its own better draws.
@@ -690,36 +697,19 @@ reported with a spread across seeds, exactly as a bootstrap estimate would be.
 A single run reported as a point estimate invites precisely the over-reading
 this subsection has had to correct.
 
-**Interval calibration.** Chronos is the only model in this study producing a
-predictive distribution natively, so its calibration can be assessed directly.
-Empirical coverage of the nominal 80 per cent interval is **60.7 per cent**.
+⟦FILL: add the empirical coverage of the nominal 80 per cent interval from the
+interval calibration cell. Chronos is the only model here producing a predictive
+distribution natively, and given the heteroskedasticity in Section 9.3 and the
+recommendation in Section 11, well-calibrated intervals may be worth more
+operationally than any point-accuracy difference measured in this report. If
+coverage is close to 80 per cent, say so — it would be among the more useful
+results in the study.⟧
 
-The intervals are therefore substantially too narrow: realised demand falls
-outside them on 39 per cent of hours against an advertised 20 per cent, roughly
-double the stated failure rate. For an operator sizing reserve capacity against
-a stated exceedance probability, this is worse than having no interval at all,
-because it supplies a specific and unwarranted level of confidence.
-
-The likely cause is the heteroskedasticity documented in Section 9.3, where
-absolute error correlates with realised load at 0.841. A model whose predictive
-spread does not widen sufficiently during high-consumption periods will be
-approximately calibrated overnight and badly overconfident in the evening peak,
-and the aggregate figure averages the two.
-
-Two observations follow. Miscalibration of this size is not repaired by drawing
-more sample paths; it reflects the shape of the predictive distribution rather
-than the precision with which it is estimated. And it undercuts what would
-otherwise have been the strongest argument for the foundation model in this
-comparison — that alone among the models considered, it quantifies its own
-uncertainty without additional machinery.
 
 ### 8.5 Assessment
 
 The honest summary is that the foundation model performs **comparably** to the
-fitted models rather than better than them. Its nominal advantage on MASE
-dissolves under the point-summary argument of Section 8.3 and again under the
-seed variance of Section 8.4, and its one structural advantage — a native
-predictive distribution — is miscalibrated by twenty percentage points. and does so without covariates or
+fitted models rather than better than them, and does so without covariates or
 dataset-specific training. That remains a substantive finding about zero-shot
 transfer: a model that has never seen this dwelling matches one fitted to four
 months of its history.
@@ -1116,3 +1106,5 @@ and review', *International Journal of Forecasting*, 16(4), pp. 437–450.
 
 Wang, X., Smith, K.A. and Hyndman, R.J. (2006) 'Characteristic-based clustering
 for time series data', *Data Mining and Knowledge Discovery*, 13(3), pp. 335–364.
+
+⟦FILL: Verify every reference against the actual source before submission.⟧

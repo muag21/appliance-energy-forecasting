@@ -2,28 +2,32 @@
 PRE-SUBMISSION VERIFICATION
 ====================================================================
 
-[  ok  ] Required files present             
-[  ok  ] Notebooks present                    8 found, 7 expected
-[  ok  ] Git repository initialised           43 files tracked
-[  ok  ] No large files committed           
-[  ok  ] Raw data not committed             
-[  ok  ] Test suite passes                    .....................................                                    [100%]
-[  ok  ] Pipeline outputs exist             
-[  ok  ] Forecast length matches test period  336 rows, expected 336
-[  ok  ] No missing forecast values           0 NaNs
-[  ok  ] Metrics cover every forecast column  forecasts: 8, metrics: 8
-[  ok  ] All four metrics reported            columns: ['model', 'MAE', 'RMSE', 'MASE', 'Bias']
-[  ok  ] RMSE >= MAE for every model        
-[  ok  ] Metrics sorted by MASE             
-[  ok  ] All five benchmarks evaluated        missing: set()
-[  ok  ] SARIMAX evaluated                  
-[  ok  ] Feature-based model evaluated      
-[ FAIL ] Foundation model evaluated           run without --no-foundation
-[  ok  ] Figures generated                    6 PNG files
-[ FAIL ] check_report                         check itself errored: 'charmap' codec can't decode byte 0x81 in position 37798: character maps to <undefined>
-[ FAIL ] check_numbers_match                  check itself errored: 'charmap' codec can't decode byte 0x81 in position 37798: character maps to <undefined>
+[  ok  ] Required files present                  
+[  ok  ] Notebooks present                         8 found, 7 expected
+[  ok  ] Git repository initialised                47 files tracked
+[  ok  ] No large files committed                
+[  ok  ] Raw data not committed                  
+[  ok  ] Test suite passes                         .....................................                                    [100%]
+[  ok  ] Pipeline outputs exist                  
+[  ok  ] Forecast length matches test period       336 rows, expected 336
+[  ok  ] No missing forecast values                0 NaNs
+[  ok  ] Metrics cover every forecast column       forecasts: 8, metrics: 8
+[  ok  ] All four metrics reported                 columns: ['model', 'MAE', 'RMSE', 'MASE', 'Bias']
+[  ok  ] RMSE >= MAE for every model             
+[  ok  ] Metrics sorted by MASE                  
+[  ok  ] All five benchmarks evaluated             missing: set()
+[  ok  ] SARIMAX evaluated                       
+[  ok  ] Feature-based model evaluated           
+[ FAIL ] Foundation model evaluated                run without --no-foundation
+[  ok  ] Figures generated                         6 PNG files
+[ FAIL ] No draft placeholders remain              2 remaining
+[ FAIL ] Draft notice removed                    
+[  ok  ] All 11 sections present                   11 numbered sections
+[  ok  ] Six mandatory questions answered          6 found in Section 11
+[ warn ] Report length plausible                   ~9489 words (6-8 pages is roughly 3000-4500)
+[  ok  ] Every model's MASE appears in the report
 
 --------------------------------------------------------------------
-20 checks: 17 passed, 0 warnings, 3 failures
+24 checks: 20 passed, 1 warnings, 3 failures
 
 NOT READY TO SUBMIT. Resolve the failures above.
