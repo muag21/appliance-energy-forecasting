@@ -607,6 +607,8 @@ forecast. The 24-step horizon sits well inside the model's native prediction
 length, so no autoregressive stitching was required. The fourteen origins
 completed in 53 to 60 seconds per run on Colab hardware.
 
+Chronos was executed on Google Colab rather than locally, because the model host was unreachable from the local environment. Its figures therefore derive from a different platform than the rest of the results, and the cross-platform variation documented in Section 10 applies accordingly.
+
 **The model is univariate.** It receives only the target history — no calendar
 features, no weather, no indoor sensors. Given the finding in Section 7.3 that
 calendar features carry 90.7 per cent of the feature model's permutation
@@ -943,6 +945,8 @@ the code. The ordering is preserved and no conclusion changes, but a spread of
 that size from the platform alone is comparable to several of the differences
 between models — which reinforces rather than undermines the significance
 testing in Section 9.1.
+
+The foundation model results in Section 8 were produced on different hardware than the remaining results, compounding this variation. A single-platform re-run would be preferable and was not possible here.
 
 **A single test fortnight is the binding limitation.** Every result rests on 336
 observations with heavily serially correlated losses, and no difference among the

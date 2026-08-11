@@ -2,8 +2,8 @@
 ==========================================================================================
 Dep. Variable:                         Appliances   No. Observations:                 2954
 Model:             SARIMAX(1, 0, 1)x(1, 0, 1, 24)   Log Likelihood              -16242.245
-Date:                            Sun, 09 Aug 2026   AIC                          32506.490
-Time:                                    17:32:09   BIC                          32572.293
+Date:                            Tue, 11 Aug 2026   AIC                          32506.490
+Time:                                    12:54:21   BIC                          32572.293
 Sample:                                01-11-2016   HQIC                         32530.189
                                      - 05-13-2016                                         
 Covariance Type:                              opg                                         

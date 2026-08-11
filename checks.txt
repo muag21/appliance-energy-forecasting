@@ -4,30 +4,30 @@ PRE-SUBMISSION VERIFICATION
 
 [  ok  ] Required files present                  
 [  ok  ] Notebooks present                         8 found, 7 expected
-[  ok  ] Git repository initialised                47 files tracked
+[  ok  ] Git repository initialised                51 files tracked
 [  ok  ] No large files committed                
 [  ok  ] Raw data not committed                  
 [  ok  ] Test suite passes                         .....................................                                    [100%]
 [  ok  ] Pipeline outputs exist                  
 [  ok  ] Forecast length matches test period       336 rows, expected 336
 [  ok  ] No missing forecast values                0 NaNs
-[  ok  ] Metrics cover every forecast column       forecasts: 8, metrics: 8
+[  ok  ] Metrics cover every forecast column       forecasts: 9, metrics: 9
 [  ok  ] All four metrics reported                 columns: ['model', 'MAE', 'RMSE', 'MASE', 'Bias']
 [  ok  ] RMSE >= MAE for every model             
 [  ok  ] Metrics sorted by MASE                  
 [  ok  ] All five benchmarks evaluated             missing: set()
 [  ok  ] SARIMAX evaluated                       
 [  ok  ] Feature-based model evaluated           
-[ FAIL ] Foundation model evaluated                run without --no-foundation
+[  ok  ] Foundation model evaluated              
 [  ok  ] Figures generated                         6 PNG files
-[ FAIL ] No draft placeholders remain              2 remaining
-[ FAIL ] Draft notice removed                    
+[  ok  ] No draft placeholders remain              0 remaining
+[  ok  ] Draft notice removed                    
 [  ok  ] All 11 sections present                   11 numbered sections
 [  ok  ] Six mandatory questions answered          6 found in Section 11
-[ warn ] Report length plausible                   ~9489 words (6-8 pages is roughly 3000-4500)
-[  ok  ] Every model's MASE appears in the report
+[ warn ] Report length plausible                   ~9503 words (6-8 pages is roughly 3000-4500)
+[ FAIL ] Every model's MASE appears in the report  chronos_zeroshot (0.684); sarimax_conditional (0.704); feature_model (0.717); sarimax_operational (0.736)
 
 --------------------------------------------------------------------
-24 checks: 20 passed, 1 warnings, 3 failures
+24 checks: 22 passed, 1 warnings, 1 failures
 
 NOT READY TO SUBMIT. Resolve the failures above.
