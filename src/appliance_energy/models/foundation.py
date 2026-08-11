@@ -44,18 +44,27 @@ def load_chronos(model_name: str = config.CHRONOS_MODEL, device: str = "auto"):
 
     try:
         import torch
-        from chronos import ChronosPipeline
+        try:
+            from chronos import BaseChronosPipeline as ChronosPipeline
+        except ImportError:
+            from chronos import ChronosPipeline
     except ImportError as exc:  # pragma: no cover - optional dependency
         raise ImportError(
             "Chronos requires 'torch' and 'chronos-forecasting'. "
             "Install with: pip install torch chronos-forecasting"
         ) from exc
 
-    pipeline = ChronosPipeline.from_pretrained(
-        model_name,
-        device_map=device,
-        torch_dtype=torch.bfloat16 if device == "cuda" else torch.float32,
-    )
+    dtype = torch.bfloat16 if device == "cuda" else torch.float32
+
+    # `torch_dtype` was renamed to `dtype` in recent transformers releases.
+    try:
+        pipeline = ChronosPipeline.from_pretrained(
+            model_name, device_map=device, dtype=dtype,
+        )
+    except TypeError:
+        pipeline = ChronosPipeline.from_pretrained(
+            model_name, device_map=device, torch_dtype=dtype,
+        )
 
     _PIPELINE_CACHE[key] = pipeline
     return pipeline
@@ -83,13 +92,39 @@ def chronos_forecaster(
             history.to_numpy(dtype="float32")[-context_length:]
         )
 
-        samples = pipeline.predict(
-            context=context,
-            prediction_length=horizon,
-            num_samples=num_samples,
-        )
+        # The first argument has been named `context` and later `inputs` across
+        # releases, so it is passed positionally.  `num_samples` exists only on
+        # sample-based pipelines, not on quantile-based ones.
+        import inspect
 
-        arr = samples[0].float().cpu().numpy()  # (num_samples, horizon)
+        kwargs = {"prediction_length": horizon}
+        try:
+            params = inspect.signature(pipeline.predict).parameters
+            if "num_samples" in params:
+                kwargs["num_samples"] = num_samples
+        except (TypeError, ValueError):
+            kwargs["num_samples"] = num_samples
+
+        raw = pipeline.predict(context, **kwargs)
+
+        # Output is a tensor, a list of tensors, or a (quantiles, mean) tuple
+        # depending on version.  Normalise to a 2-D array of shape
+        # (draws, horizon).
+        if isinstance(raw, tuple):
+            raw = raw[0]
+        if isinstance(raw, (list, tuple)):
+            raw = raw[0]
+
+        arr = np.asarray(
+            raw.float().cpu().numpy() if hasattr(raw, "cpu") else raw
+        )
+        while arr.ndim > 2:
+            arr = arr[0]
+        if arr.ndim == 1:
+            arr = arr.reshape(1, -1)
+        if arr.shape[0] == horizon and arr.shape[1] != horizon:
+            arr = arr.T
+
         qs = np.quantile(arr, quantiles, axis=0)
         store.append(pd.DataFrame(qs.T, columns=[f"q{q}" for q in quantiles]))
 
