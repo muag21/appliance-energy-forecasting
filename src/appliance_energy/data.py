@@ -32,7 +32,7 @@ def download_raw(url: str = config.DATA_URL, dest: Path = config.RAW_CSV) -> Pat
     payload = None
     errors = []
 
-    for source in (url, config.DATA_URL_MIRROR):
+    for source in (url, config.DATA_URL_MIRROR, config.DATA_URL_LEGACY):
         try:
             with urllib.request.urlopen(source, timeout=60) as response:
                 payload = response.read()

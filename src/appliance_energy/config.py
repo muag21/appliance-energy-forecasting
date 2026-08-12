@@ -30,8 +30,8 @@ DATA_URL = (
     "appliances+energy+prediction.zip"
 )
 DATA_URL_MIRROR = (
-    "https://raw.githubusercontent.com/LuisM78/"
-    "Appliances-energy-prediction-data/master/energydata_complete.csv"
+    "https://archive.ics.uci.edu/ml/machine-learning-databases/"
+    "00374/energydata_complete.csv"
 )
 
 # --------------------------------------------------------------------------
